@@ -34,12 +34,40 @@
 | **Discord 框架** | discord.js | 14.x | Discord Bot 開發框架 |
 | **ORM** | Prisma | 5.x | PostgreSQL ORM，型別安全的資料庫操作 |
 | **資料庫** | PostgreSQL | 16.x | 主資料庫 |
-| **LLM SDK** | OpenAI SDK | 4.x | AI 功能整合 |
+| **LLM SDK** | OpenAI SDK | 4.x | GPT-4o 系列 AI 模型 |
+| **LLM SDK** | Anthropic SDK | 0.x | Claude 3.5 Haiku AI 模型 |
+| **Email 服務** | Resend | 2.x | 信件送達的 Email 通知 |
 | **任務排程** | node-cron | 3.x | 定時任務（每日提醒、週期回顧） |
 | **環境變數** | dotenv | 16.x | 環境配置管理 |
 | **日誌系統** | winston | 3.x | 結構化日誌記錄 |
 | **驗證** | zod | 3.x | 運行時型別驗證 |
 | **日期處理** | date-fns | 3.x | 日期時間處理 |
+
+### AI 模型策略
+
+**雙模型混合使用**，針對不同場景選擇最適合的模型：
+
+| 場景 | 推薦模型 | 理由 |
+|------|---------|------|
+| 日常情緒記錄分析 | Claude 3.5 Haiku | 聰明、真誠、性價比高 |
+| 聊天記錄分析 | Claude 3.5 Haiku | 處理長文本能力強 |
+| 歌曲推薦 | Claude 3.5 Haiku | 快速且精準 |
+| 挑戰建議 | Claude 3.5 Haiku | 創意與實用兼具 |
+| 週期回顧報告 | GPT-4o | 情緒價值高、深度洞察強 |
+| 年度總結 | GPT-4o | 最高品質的敘事能力 |
+
+#### 價格比較（2024年12月）
+
+| 模型 | Input | Output | 典型對話成本* | 適用場景 |
+|------|-------|--------|--------------|---------|
+| **GPT-4o-mini** | $0.15/M | $0.60/M | $0.0018 | 💰 測試開發 |
+| **Claude 3.5 Haiku** ⭐ | $0.80/M | $4.00/M | $0.0028 | ✨ 日常對話（推薦） |
+| **GPT-4o** | $2.50/M | $10.00/M | $0.0075 | 💎 重要回顧 |
+| Claude 3.5 Sonnet | $3.00/M | $15.00/M | $0.0105 | 🧠 最高品質（備用） |
+
+*典型對話：1000 input tokens + 500 output tokens
+
+**成本估算**：每位使用者每月約 100 次互動，平均成本約 $0.28（使用 Claude Haiku）或 $0.75（混合使用）
 
 ---
 
@@ -372,12 +400,16 @@ model ActivityLog {
 - `/view-planet [日期]` - 查看特定日期的星球
 - `/my-galaxy` - 查看我的星球圖譜（月曆視圖）
 
-**互動流程：**
+**互動流程 A：手動輸入**
 ```
 User: /paint
 Bot: 🌟 歡迎來到今天的星球！今天你想用什麼顏色彩繪它呢？
 
-     請告訴我你今天的心情（1-10分）：
+     你想怎麼記錄今天的心情？
+     [✍️ 手動輸入] [📋 貼上聊天記錄]
+
+User: [選擇 手動輸入]
+Bot: 請告訴我你今天的心情（1-10分）：
      1-3: 低落 😔
      4-6: 平靜 😌
      7-8: 開心 😊
@@ -407,10 +439,92 @@ Bot: 🎨 你的星球正在成形...
      已記錄到你的星系圖譜 ⭐
 ```
 
+**互動流程 B：聊天記錄分析**
+```
+User: /paint
+Bot: 🌟 歡迎來到今天的星球！
+
+     你想怎麼記錄今天的心情？
+     [✍️ 手動輸入] [📋 貼上聊天記錄]
+
+User: [選擇 貼上聊天記錄]
+Bot: 請貼上你的聊天記錄：
+     （可以是你和朋友、ChatGPT、Claude 的對話，
+     　或是你的日記片段）
+
+User: [貼上大段聊天記錄]
+     早上和朋友聊天說工作壓力很大...
+     下午跟 ChatGPT 討論了一些想法...
+     晚上跟家人視訊聊得很開心...
+
+Bot: 📝 正在分析你的對話...
+
+     我從你的對話中整理出這些情緒片段：
+
+     🌅 早上（約 9:00）
+     情緒：焦慮、壓力 😰
+     關鍵事件：工作專案進度落後
+
+     🌤️ 下午（約 14:00）
+     情緒：思考、期待 🤔
+     關鍵事件：討論新想法，感到有希望
+
+     🌙 晚上（約 20:00）
+     情緒：溫暖、放鬆 😊
+     關鍵事件：家人視訊，感受到支持
+
+     ━━━━━━━━━━━━━━━━━━━━
+     這些時間點正確嗎？
+     [✅ 正確] [✏️ 修改] [🔄 重新分析]
+
+User: [選擇 正確]
+Bot: 太好了！整體來看，你今天的情緒：
+
+     平均心情指數：6/10
+     主要情緒：從焦慮到放鬆的轉變
+
+     你今天經歷了起伏，但最終找到了
+     支持和安慰。這是很棒的情緒調節！
+
+     🎨 你的星球正在成形...
+
+     ✨ 今日星球 #127
+     顏色: 漸層色（灰→藍→金黃）🌈
+     代表：情緒的轉變與成長
+
+     🎵 為你推薦的歌曲：
+     《The Climb》- Miley Cyrus
+     (適合你今天的心路歷程)
+     🔗 [播放連結]
+
+     💭 AI 洞察：
+     你今天展現了很好的韌性。雖然早上
+     感到壓力，但你主動尋求思考和支持，
+     最終在家人的陪伴中找到了平靜。
+     這種自我調節能力非常珍貴！
+
+     已記錄到你的星系圖譜 ⭐
+
+[如果選擇 修改]
+Bot: 請告訴我哪個時間需要修改：
+     [1️⃣ 早上] [2️⃣ 下午] [3️⃣ 晚上]
+
+User: [選擇 2️⃣ 下午]
+Bot: 下午的事件大約發生在什麼時候？
+User: 大概下午4點
+Bot: 好的！已更新為 16:00
+     [繼續確認流程...]
+```
+
 **技術實現：**
 - 使用 Discord Modal 進行多步驟輸入
-- LLM 分析情緒關鍵字和生成洞察
-- 歌曲推薦邏輯（基於情緒標籤）
+- Claude 3.5 Haiku 分析長文本聊天記錄
+  - 智能提取時間戳（早上/下午/晚上）
+  - 識別情緒波動點
+  - 生成結構化摘要
+- 互動式時間確認機制
+- GPT-4o 或 Claude Haiku 生成深度洞察
+- 根據使用者音樂偏好推薦歌曲
 
 ---
 
@@ -435,7 +549,7 @@ Bot: 📬 你想寄信給多久後的自己？
      🔘 自訂日期
 
 User: [選擇 6個月後]
-Bot: 很好！這封信將在 2024-05-17 送達。
+Bot: 很好！這封信將在 2025-05-17 送達。
 
      現在，請寫下你想對未來自己說的話：
      (你可以分享現在的心情、目標、期待...)
@@ -444,21 +558,91 @@ User: 親愛的未來的我，
      現在的我正在為新專案努力...
      希望半年後你已經...
 
+Bot: 這封信要送達時，你想怎麼收到？
+     ☑ Discord 私訊提醒
+     ☑ Email 通知
+     (可複選)
+
+User: [兩個都選]
+Bot: 請提供你的 Email 地址：
+
+User: example@gmail.com
 Bot: ✉️ 信件已封存！
 
-     📅 送達日期: 2024-05-17
+     📅 送達日期: 2025-05-17
      🔒 狀態: 已加密保存
+     📬 通知方式: Discord DM + Email
 
-     這封信將在 183 天後送達你的信箱。
-     屆時我會提醒你 ⏰
+     這封信將在 183 天後送達。
+     屆時我會：
+     • 透過 Discord 提醒你
+     • 寄送 Email 到 example@gmail.com
 
      期待未來的重逢 🌠
 ```
 
+**信件送達流程：**
+```
+[2025-05-17 當天]
+
+Discord DM:
+Bot: 📬 你有一封來自 183 天前的信！
+
+     ✉️ 寄件日期: 2024-11-17
+     📅 今天是你設定的送達日期
+
+     這封信裡藏著過去的你想對現在的你說的話...
+
+     [📭 開啟信件] [⏰ 稍後再看]
+
+User: [點擊 開啟信件]
+Bot: [顯示完整信件內容]
+
+     ━━━━━━━━━━━━━━━━━━━━
+     📮 來自 183 天前的你
+
+     親愛的未來的我，
+
+     現在的我正在為新專案努力...
+     希望半年後你已經...
+
+     ━━━━━━━━━━━━━━━━━━━━
+
+     💭 此時此刻，你有什麼想說的嗎？
+
+     [💬 回信給過去的自己] [✍️ 寫新的信給未來]
+
+同時寄送 Email:
+主旨: 📬 一封來自 183 天前的你 | Mementia
+內容:
+  你好，
+
+  在 2024-11-17，過去的你寫了一封信給現在的你。
+
+  這封信現在已經送達，請到 Discord 開啟你的時光膠囊：
+
+  👉 使用 /my-letters 指令查看信箱
+
+  或者直接點擊下方按鈕：
+  [開啟我的信件]
+
+  祝你有個美好的一天！
+
+  —— Mementia Bot
+  Where memories live ✨
+```
+
 **技術實現：**
-- Cron job 每日檢查待送達信件
-- DM 私訊通知使用者
-- 加密存儲（可選）
+- **排程系統**: node-cron 每小時檢查待送達信件
+- **通知方式**:
+  - Discord DM: 只傳提醒，不顯示內容（保持神秘感）
+  - Email: 使用 **Resend** 服務發送通知信
+- **Email 服務配置** (Resend):
+  - 免費額度: 100 封/天（開發測試足夠）
+  - 每封成本: $0.0001（生產環境）
+  - API 簡單易用，開發者友善
+- **信件存儲**: PostgreSQL 加密存儲（可選）
+- **開信追蹤**: 記錄 `openedAt` 時間戳
 
 ---
 
@@ -879,9 +1063,28 @@ DISCORD_GUILD_ID=your_test_server_id  # 開發用
 # 資料庫配置
 DATABASE_URL="postgresql://user:password@localhost:5432/mementia?schema=public"
 
-# AI 配置
+# AI 配置 - OpenAI
 OPENAI_API_KEY=your_openai_api_key
-OPENAI_MODEL=gpt-4  # 或 gpt-3.5-turbo
+OPENAI_MODEL=gpt-4o
+# 可選模型: gpt-4o, gpt-4o-mini
+
+# AI 配置 - Anthropic
+ANTHROPIC_API_KEY=your_anthropic_api_key
+ANTHROPIC_MODEL=claude-3-5-haiku-20241022
+# 可選模型: claude-3-5-haiku-20241022, claude-3-5-sonnet-20241022
+
+# AI 模型分配策略
+AI_MODEL_DAILY=claude-3-5-haiku-20241022  # 日常情緒記錄
+AI_MODEL_REVIEW=gpt-4o                     # 週期回顧報告
+AI_MODEL_CHAT_ANALYSIS=claude-3-5-haiku-20241022  # 聊天記錄分析
+AI_MODEL_SONG=claude-3-5-haiku-20241022    # 歌曲推薦
+AI_MODEL_CHALLENGE=claude-3-5-haiku-20241022  # 挑戰建議
+
+# Email 服務 - Resend
+RESEND_API_KEY=your_resend_api_key
+RESEND_FROM_EMAIL=noreply@yourdomain.com
+# 註冊: https://resend.com/
+# 免費額度: 100 封/天, 3000 封/月
 
 # 應用配置
 NODE_ENV=development  # development | production
@@ -892,8 +1095,27 @@ LOG_LEVEL=info  # debug | info | warn | error
 ENABLE_DAILY_REMINDER=true
 ENABLE_AUTO_REVIEW=true
 ENABLE_CHALLENGES=true
+ENABLE_EMAIL_NOTIFICATION=true
 
-# 其他
+# AI 回應設定
+AI_MAX_TOKENS=1000
+AI_TEMPERATURE=0.7
+
+# 提醒時間設定（24小時制）
+DEFAULT_REMINDER_TIME=21:00
+
+# 挑戰系統設定
+CHALLENGE_ASSIGN_HOUR=9        # 每天幾點分配新挑戰
+CHALLENGES_PER_WEEK=3          # 每週分配多少個挑戰
+
+# 回顧生成時間
+WEEKLY_REVIEW_DAY=0            # 0=週日, 1=週一, ..., 6=週六
+MONTHLY_REVIEW_DAY=1           # 每月第幾天生成月報
+
+# 速率限制
+RATE_LIMIT_PER_MINUTE=10       # 每位使用者每分鐘可執行的指令數
+
+# 其他整合（可選）
 SPOTIFY_CLIENT_ID=optional_spotify_client_id
 SPOTIFY_CLIENT_SECRET=optional_spotify_client_secret
 ```
