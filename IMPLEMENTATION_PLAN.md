@@ -150,10 +150,10 @@ GPT-5.1 Mini：第一次 $0.25/M，之後 $0.025/M（省 90%）
 └───────────────────────────────────────────────────────────────────┘
 
         ┌──────────────────────────────────────┐
-        │    External Services (Optional)       │
+        │    External Services                  │
         │  ┌──────────┬──────────────────────┐ │
-        │  │ OpenAI   │  Spotify/YouTube API │ │
-        │  │   API    │  (Song Recommend)    │ │
+        │  │ OpenAI   │  Resend Email API    │ │
+        │  │   API    │  (Letter Delivery)   │ │
         │  └──────────┴──────────────────────┘ │
         └──────────────────────────────────────┘
 ```
@@ -228,17 +228,26 @@ model User {
   id            String         @id @default(uuid())
   discordId     String         @unique @map("discord_id")
   username      String
+  email         String?        // Email 地址（用於未來信件通知，可選）
   timezone      String         @default("Asia/Taipei")
   reminderTime  String?        @map("reminder_time") // 每日提醒時間 (HH:mm)
+
+  // 獎勵系統
+  stardust      Int            @default(0) // 星塵餘額
+  level         Int            @default(1) // 當前等級
+  totalRecords  Int            @default(0) @map("total_records") // 總記錄天數
+
   createdAt     DateTime       @default(now()) @map("created_at")
   updatedAt     DateTime       @updatedAt @map("updated_at")
 
   // 關聯
-  emotions      Emotion[]
-  futureLetters FutureLetter[]
-  reviews       Review[]
-  challenges    UserChallenge[]
-  settings      UserSettings?
+  emotions           Emotion[]
+  futureLetters      FutureLetter[]
+  reviews            Review[]
+  challenges         UserChallenge[]
+  settings           UserSettings?
+  stardustTransactions StardustTransaction[]
+  userBadges         UserBadge[]
 
   @@map("users")
 }
@@ -410,6 +419,57 @@ model ActivityLog {
   @@index([userId, createdAt])
   @@map("activity_logs")
 }
+
+// ============================================
+// 獎勵系統
+// ============================================
+
+// 星塵交易記錄
+model StardustTransaction {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  amount    Int      // 正數為獲得，負數為花費
+  reason    String   // 原因
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@map("stardust_transactions")
+}
+
+// 徽章定義
+model Badge {
+  id          String   @id @default(uuid())
+  code        String   @unique // 徽章代碼（FIRST_RECORD, WEEK_STREAK 等）
+  name        String   // 徽章名稱
+  description String   // 徽章描述
+  icon        String   // Emoji 圖示
+  category    String   // 類別（record, challenge, explore, special）
+
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // 關聯
+  userBadges  UserBadge[]
+
+  @@map("badges")
+}
+
+// 使用者徽章
+model UserBadge {
+  id       String   @id @default(uuid())
+  userId   String   @map("user_id")
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  badgeId  String   @map("badge_id")
+  badge    Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  earnedAt DateTime @default(now()) @map("earned_at")
+
+  @@unique([userId, badgeId])
+  @@index([userId])
+  @@map("user_badges")
+}
 ```
 
 ---
@@ -484,26 +544,43 @@ User: [貼上大段聊天記錄]
 
 Bot: 📝 正在分析你的對話...
 
-     我從你的對話中整理出這些情緒片段：
+     [情況 A - AI 偵測到時間資訊]
+     我從你的對話中發現了這些時間點和情緒：
 
-     🌅 早上（約 9:00）
+     🌅 早上 9:00 左右
      情緒：焦慮、壓力 😰
      關鍵事件：工作專案進度落後
 
-     🌤️ 下午（約 14:00）
+     🌤️ 下午 2:00 左右
      情緒：思考、期待 🤔
      關鍵事件：討論新想法，感到有希望
 
-     🌙 晚上（約 20:00）
+     🌙 晚上 8:00 左右
      情緒：溫暖、放鬆 😊
      關鍵事件：家人視訊，感受到支持
 
-     ━━━━━━━━━━━━━━━━━━━━
      這些時間點正確嗎？
-     [✅ 正確] [✏️ 修改] [🔄 重新分析]
+     [✅ 完全正確] [✏️ 需要調整] [🔄 重新分析]
 
-User: [選擇 正確]
-Bot: 太好了！整體來看，你今天的情緒：
+     [情況 B - AI 無法判斷具體時間]
+     我從你的對話中整理出這些情緒變化：
+
+     📍 片段 1
+     情緒：焦慮、壓力 😰
+     關鍵事件：工作專案進度落後
+
+     請問這大約發生在什麼時候？
+     [🌅 早上] [🌤️ 下午] [🌙 晚上] [✏️ 自訂時間]
+
+User: [選擇 自訂時間]
+Bot: 請輸入具體時間（例如：9:00、14:30）
+User: 9:00
+Bot: 好的！已記錄為早上 9:00
+
+     繼續下一個片段...
+     [重複確認流程，直到所有片段確認完成]
+
+Bot: 太好了！所有時間都已確認。整體來看，你今天的情緒：
 
      平均心情指數：6/10
      主要情緒：從焦慮到放鬆的轉變
@@ -519,8 +596,7 @@ Bot: 太好了！整體來看，你今天的情緒：
 
      🎵 為你推薦的歌曲：
      《The Climb》- Miley Cyrus
-     (適合你今天的心路歷程)
-     🔗 [播放連結]
+     🔗 [Spotify 連結]
 
      💭 AI 洞察：
      你今天展現了很好的韌性。雖然早上
@@ -529,27 +605,73 @@ Bot: 太好了！整體來看，你今天的情緒：
      這種自我調節能力非常珍貴！
 
      已記錄到你的星系圖譜 ⭐
-
-[如果選擇 修改]
-Bot: 請告訴我哪個時間需要修改：
-     [1️⃣ 早上] [2️⃣ 下午] [3️⃣ 晚上]
-
-User: [選擇 2️⃣ 下午]
-Bot: 下午的事件大約發生在什麼時候？
-User: 大概下午4點
-Bot: 好的！已更新為 16:00
-     [繼續確認流程...]
 ```
 
 **技術實現：**
 - 使用 Discord Modal 進行多步驟輸入
-- Claude Haiku 4.5 分析長文本聊天記錄
-  - 智能提取時間戳（早上/下午/晚上）
-  - 識別情緒波動點
+- **Claude Haiku 4.5** 分析長文本聊天記錄
+  - **智能時間偵測**：LLM 自動判斷對話中的時間線索（「早上」「剛剛」「下午3點」等）
+  - **無時間則詢問**：無法判斷時提供選項讓使用者補充
+  - **互動式確認**：所有時間點都需使用者確認才儲存
+  - 識別情緒波動點和關鍵事件
   - 生成結構化摘要
-- 互動式時間確認機制
-- GPT-4o 或 Claude Haiku 4.5 生成深度洞察
-- 根據使用者音樂偏好推薦歌曲
+- **GPT-5.1 Mini** 生成深度洞察和歌曲推薦
+- **GPT-5.1 Mini** 使用網路搜尋功能找尋歌曲連結和播放平台
+
+**星球顏色生成策略：**
+- **完全由 AI 創造**：根據使用者的情緒內容，讓 GPT-5.1 Mini 自由發揮想像力
+- **無固定規則**：不設定情緒分數與顏色的對照表
+- **AI Prompt 範例**：
+  ```
+  根據使用者的情緒日記內容，為他們的「今日星球」設計一個獨特的顏色。
+
+  情緒內容：{user_content}
+  情緒分數：{mood_score}/10
+
+  請根據情緒的質感、氛圍和能量，自由創造一個最能代表今天的顏色。
+  可以是：
+  - 單一顏色（如：深海藍 #1B4D89）
+  - 漸層色（如：黎明漸層 #FF6B6B → #FFD93D）
+  - 複合色（如：雨後彩虹 🌈）
+
+  請以 Hex code 格式回傳，並簡短說明這個顏色的意義。
+
+  回傳格式：
+  {
+    "color": "#HEX或漸層描述",
+    "meaning": "顏色代表的意義"
+  }
+  ```
+- **創意優先**：鼓勵 AI 發揮創意，創造獨特且有意義的星球顏色
+- **儲存格式**：將 Hex code 或漸層描述儲存在 `emotions.color` 欄位
+
+**歌曲推薦策略：**
+- **使用 LLM 網路搜尋功能**：利用 GPT-5.1 Mini 的網路搜尋能力（Web Search）
+- **不使用 Spotify API**：簡化實作，避免 API 整合複雜度
+- **推薦流程**：
+  1. GPT-5.1 Mini 根據情緒內容推薦適合的歌曲
+  2. 使用網路搜尋功能找出歌曲在各平台的連結
+  3. 優先順序：Spotify > YouTube > Apple Music
+  4. 儲存歌曲名稱和 URL 到資料庫
+- **降級方案**：如果無法找到連結，只提供歌名和歌手
+- **AI Prompt 範例**：
+  ```
+  根據使用者的情緒日記，推薦一首最適合的歌曲。
+
+  情緒內容：{user_content}
+  情緒分數：{mood_score}/10
+
+  請推薦一首能夠共鳴、療癒或鼓勵使用者的歌曲。
+  然後使用網路搜尋找出這首歌在 Spotify 或 YouTube 的播放連結。
+
+  回傳格式：
+  {
+    "song_name": "歌曲名稱",
+    "artist": "歌手",
+    "url": "播放連結（Spotify/YouTube）",
+    "reason": "推薦理由（一句話）"
+  }
+  ```
 
 ---
 
@@ -565,6 +687,27 @@ Bot: 好的！已更新為 16:00
 **互動流程：**
 ```
 User: /write-letter
+
+[情況 A - 第一次使用（使用者未設定 Email）]
+Bot: 📬 歡迎來到時光郵局！
+
+     在開始之前，請先提供你的 Email 地址，
+     這樣當信件送達時，我也能透過 Email 提醒你。
+
+     請輸入你的 Email：
+
+User: example@gmail.com
+Bot: ✅ Email 已儲存！
+
+     現在，你想寄信給多久後的自己？
+
+     快速選擇：
+     🔘 3個月後
+     🔘 6個月後
+     🔘 1年後
+     🔘 自訂日期
+
+[情況 B - 已設定過 Email]
 Bot: 📬 你想寄信給多久後的自己？
 
      快速選擇：
@@ -583,27 +726,18 @@ User: 親愛的未來的我，
      現在的我正在為新專案努力...
      希望半年後你已經...
 
-Bot: 這封信要送達時，你想怎麼收到？
-     ☑ Discord 私訊提醒
-     ☑ Email 通知
-     (可複選)
-
-User: [兩個都選]
-Bot: 請提供你的 Email 地址：
-
-User: example@gmail.com
 Bot: ✉️ 信件已封存！
 
      📅 送達日期: 2025-05-17
-     🔒 狀態: 已加密保存
-     📬 通知方式: Discord DM + Email
+     🔒 狀態: 已安全保存
+     📬 通知方式: Discord DM + Email (example@gmail.com)
 
      這封信將在 183 天後送達。
-     屆時我會：
-     • 透過 Discord 提醒你
-     • 寄送 Email 到 example@gmail.com
+     屆時我會透過 Discord 和 Email 同時提醒你 📮
 
      期待未來的重逢 🌠
+
+     💡 提示：可使用 /settings 隨時修改 Email 地址
 ```
 
 **信件送達流程：**
@@ -658,15 +792,21 @@ Bot: [顯示完整信件內容]
 ```
 
 **技術實現：**
+- **Email 設定**:
+  - 第一次使用 `/write-letter` 時要求輸入 Email
+  - Email 儲存在 `users.email` 欄位（可選欄位）
+  - **不需要** Email 驗證（信任使用者輸入）
+  - 可透過 `/settings` 修改 Email
 - **排程系統**: node-cron 每小時檢查待送達信件
 - **通知方式**:
   - Discord DM: 只傳提醒，不顯示內容（保持神秘感）
-  - Email: 使用 **Resend** 服務發送通知信
+  - Email: 使用 **Resend** 服務發送通知信（如果有設定 Email）
 - **Email 服務配置** (Resend):
   - 免費額度: 100 封/天（開發測試足夠）
   - 每封成本: $0.0001（生產環境）
   - API 簡單易用，開發者友善
-- **信件存儲**: PostgreSQL 加密存儲（可選）
+  - Email 發送失敗不影響 Discord 通知
+- **信件存儲**: PostgreSQL 儲存
 - **開信追蹤**: 記錄 `openedAt` 時間戳
 
 ---
@@ -782,6 +922,304 @@ Bot: 🎉 挑戰完成！
 - 隨機挑戰分配算法
 - 獎勵系統（虛擬貨幣/徽章）
 - 挑戰完成驗證（信任制）
+
+### 🎁 獎勵系統詳細設計
+
+**設計理念**：進度可見 + 里程碑獎勵，讓使用者有持續動力和成就感
+
+#### 🌟 星塵（Stardust）系統
+
+**性質**：可花費、可累積的虛擬貨幣
+
+**獲得方式：**
+- 完成情緒記錄：+10 星塵
+- 連續記錄 7 天：+50 星塵
+- 完成幸福挑戰：+20-50 星塵（依難度）
+- 寫一封未來信件：+30 星塵
+- 查看回顧報告：+5 星塵
+- 等級提升獎勵：+100 星塵
+
+**用途：**
+
+1. **解鎖回顧功能**
+   - 每週回顧：免費
+   - 每月回顧：50 星塵
+   - 自訂期間深度分析：100 星塵
+   - 年度精美報告：500 星塵
+
+2. **自訂星球外觀**
+   - 解鎖特殊星球樣式：50-200 星塵
+     - 星空紋理 🌌
+     - 極光效果 ✨
+     - 水彩風格 🎨
+     - 賽博朋克 🌃
+   - 解鎖自訂顏色功能：30 星塵
+
+3. **進階 AI 功能**
+   - 重新生成 AI 洞察：20 星塵
+   - 請 AI 深入分析特定情緒：30 星塵
+   - AI 生活建議：40 星塵
+
+**儲存實現：**
+```prisma
+model User {
+  // ... 現有欄位
+  stardust      Int      @default(0)  // 星塵餘額
+}
+
+model StardustTransaction {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  amount      Int      // 正數為獲得，負數為花費
+  reason      String   // 原因
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@map("stardust_transactions")
+}
+```
+
+#### 🏅 徽章（Badges）系統
+
+**性質**：里程碑獎勵、展示成就
+
+**徽章類別：**
+
+**1. 記錄類徽章**
+- 🌱 初次記錄：完成第一次情緒記錄
+- 🌿 堅持一週：連續記錄 7 天
+- 🌳 月度記錄者：連續記錄 30 天
+- 🌲 百日記錄：連續記錄 100 天
+- 🌍 年度守護者：連續記錄 365 天
+
+**2. 挑戰類徽章**
+- 🎯 挑戰新手：完成第一個挑戰
+- 🏆 挑戰達人：完成 10 個挑戰
+- 🌈 全面發展：完成所有類型的挑戰（社交、自我照顧、創意等）
+- 💪 堅持不懈：連續完成挑戰 7 天
+
+**3. 探索類徽章**
+- 📮 時光旅人：寫下第一封未來信件
+- 📬 重逢時刻：開啟第一封信
+- 📊 回顧探索者：查看第一次回顧報告
+- 🎨 星球藝術家：創造 50 個星球
+
+**4. 特殊類徽章**
+- 💎 勇氣之心：在情緒分數 ≤3 時仍記錄
+- 🌟 成長之星：單月情緒進步最大（+3 分以上）
+- 🌠 夜空守護者：在凌晨時段記錄
+- 🔥 熱情燃燒：單日記錄字數超過 500 字
+
+**儲存實現：**
+```prisma
+model Badge {
+  id          String   @id @default(uuid())
+  code        String   @unique // 徽章代碼（FIRST_RECORD, WEEK_STREAK 等）
+  name        String   // 徽章名稱
+  description String   // 徽章描述
+  icon        String   // Emoji 圖示
+  category    String   // 類別（record, challenge, explore, special）
+
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  userBadges  UserBadge[]
+
+  @@map("badges")
+}
+
+model UserBadge {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  badgeId     String   @map("badge_id")
+  badge       Badge    @relation(fields: [badgeId], references: [id])
+
+  earnedAt    DateTime @default(now()) @map("earned_at")
+
+  @@unique([userId, badgeId])
+  @@index([userId])
+  @@map("user_badges")
+}
+```
+
+#### 📊 等級（Level）系統
+
+**性質**：根據總記錄天數自動升級
+
+**等級列表：**
+- Lv.1 **星際旅人** 🚀（1 天）→ 獎勵 50 星塵
+- Lv.2 **星球探索者** 🌏（7 天）→ 獎勵 100 星塵
+- Lv.3 **星系守護者** 🌌（30 天）→ 獎勵 200 星塵
+- Lv.4 **宇宙觀察家** 🔭（100 天）→ 獎勵 500 星塵
+- Lv.5 **時空記錄者** ⏳（365 天）→ 獎勵 1000 星塵
+
+**展示位置：**
+- 個人資料中顯示當前等級
+- 使用 `/stats` 指令查看詳細進度
+- 等級提升時發送特別通知
+
+**儲存實現：**
+```prisma
+model User {
+  // ... 現有欄位
+  level         Int      @default(1)  // 當前等級
+  totalRecords  Int      @default(0) @map("total_records") // 總記錄天數
+}
+```
+
+#### 🎯 獎勵獲得通知範例
+
+```
+🎉 恭喜！你獲得了新徽章！
+
+🌿 堅持一週
+你已經連續記錄情緒 7 天了！
+這是一個很棒的開始 ✨
+
+獎勵：
+⭐ +50 星塵
+🏅 新徽章解鎖
+
+當前星塵：230 💫
+已獲得徽章：3/20
+
+[查看我的成就] [繼續記錄]
+```
+
+---
+
+### 5. 使用者設定 (User Settings)
+
+**功能描述：** 個人化設定，包含時區、提醒時間、Email 等
+
+**Discord 指令：**
+- `/settings` - 開啟設定選單
+
+**互動流程：**
+```
+User: /settings
+Bot: ⚙️ Mementia 設定
+
+     📋 當前設定：
+     • 時區：Asia/Taipei (GMT+8)
+     • 每日提醒：21:00
+     • Email：example@gmail.com
+     • 週報：已啟用
+     • 月報：已啟用
+     • 挑戰：已啟用
+
+     請選擇要修改的項目：
+     [🌍 時區設定] [⏰ 提醒時間] [📧 Email]
+     [🔔 通知設定] [🌐 語言]
+
+User: [選擇 時區設定]
+Bot: 🌍 時區設定
+
+     你目前的時區是：Asia/Taipei (GMT+8)
+
+     請選擇你的時區：
+     [常用時區列表...]
+     或輸入時區代碼（如：America/New_York）
+
+User: America/Los_Angeles
+Bot: ✅ 時區已更新為 America/Los_Angeles (GMT-8)
+
+     所有時間相關功能（提醒、信件送達等）
+     都會以新時區為準。
+
+User: [選擇 提醒時間]
+Bot: ⏰ 每日提醒時間設定
+
+     目前提醒時間：21:00
+
+     你希望在什麼時候收到記錄提醒？
+     [🌅 早上 08:00] [🌆 晚上 20:00]
+     [🌙 晚上 22:00] [✏️ 自訂時間]
+
+User: [選擇 自訂時間]
+Bot: 請輸入時間（24小時制，例如：09:30）
+
+User: 19:00
+Bot: ✅ 每日提醒時間已設為 19:00
+
+     從明天開始，我會在每天 19:00（你的時區）
+     提醒你記錄今天的心情 🌟
+```
+
+**時區和提醒邏輯：**
+
+**首次使用設定流程：**
+```
+[使用者第一次使用 /paint 或任何功能]
+Bot: 👋 歡迎來到 Mementia！
+
+     在開始之前，讓我們進行簡單的設定：
+
+     1️⃣ 請選擇你的時區：
+     [🇹🇼 台北 (GMT+8)] [🇺🇸 紐約 (GMT-5)]
+     [🇬🇧 倫敦 (GMT+0)] [🇯🇵 東京 (GMT+9)]
+     [✏️ 其他時區]
+
+User: [選擇 台北]
+Bot: ✅ 時區已設為 Asia/Taipei
+
+     2️⃣ 你希望每天什麼時候收到記錄提醒？
+
+     [🌅 早上 08:00] [🌆 晚上 20:00]
+     [🌙 晚上 22:00] [🚫 不需要提醒]
+
+User: [選擇 晚上 21:00]
+Bot: ✅ 太棒了！設定完成 🎉
+
+     • 時區：Asia/Taipei (GMT+8)
+     • 每日提醒：21:00
+
+     現在開始記錄你的第一個星球吧！
+     [開始記錄 🎨]
+```
+
+**技術實現：**
+
+1. **時區處理**
+   - 使用 `date-fns-tz` 處理時區轉換
+   - 所有時間戳以 UTC 儲存在資料庫
+   - 顯示時轉換為使用者時區
+   - 定時任務（提醒、信件）根據使用者時區執行
+
+2. **提醒系統**
+   - 使用 `node-cron` 每小時檢查待提醒使用者
+   - 計算「當前 UTC 時間 + 使用者時區 = 使用者當地時間」
+   - 如果符合提醒時間，發送 Discord DM
+   - 已提醒的使用者當日不再重複提醒
+
+3. **首次使用偵測**
+   - 檢查 `users.timezone` 和 `users.reminderTime` 是否為預設值
+   - 如為預設值，顯示歡迎設定流程
+   - 設定完成後允許使用功能
+
+4. **資料儲存**
+   ```prisma
+   model User {
+     timezone     String   @default("Asia/Taipei")
+     reminderTime String?  @map("reminder_time") // HH:mm 格式
+   }
+
+   model UserSettings {
+     dailyReminder Boolean @default(true)
+     // ... 其他設定
+   }
+   ```
+
+**提醒訊息範例：**
+```
+🌟 Mementia 每日提醒
+
+嗨！今天過得如何？ 😊
+
+記得記錄今天的心情，
+讓這一天成為你宇宙中獨特的星球 ✨
+
+[開始記錄 🎨] [稍後提醒] [關閉提醒]
+```
 
 ---
 
@@ -1198,9 +1636,9 @@ npm run dev
    - 視覺化星球圖
 
 4. **整合擴展**
-   - Spotify 完整整合
    - Google Calendar 同步
    - Notion/Obsidian 匯出
+   - Webhook 通知
 
 5. **多語言支援**
    - 英文版本
