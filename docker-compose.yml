@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  # PostgreSQL 資料庫
+  postgres:
+    image: postgres:16-alpine
+    container_name: mementia-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: mementia
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - mementia-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Mementia Discord Bot（開發環境）
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mementia-bot
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://postgres:password@postgres:5432/mementia?schema=public
+      NODE_ENV: development
+    env_file:
+      - .env
+    volumes:
+      - ./src:/app/src
+      - ./prisma:/app/prisma
+      - /app/node_modules
+    networks:
+      - mementia-network
+    command: npm run dev
+
+  # Prisma Studio（資料庫管理界面，可選）
+  prisma-studio:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mementia-prisma-studio
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://postgres:password@postgres:5432/mementia?schema=public
+    env_file:
+      - .env
+    ports:
+      - "5555:5555"
+    volumes:
+      - ./prisma:/app/prisma
+    networks:
+      - mementia-network
+    command: npx prisma studio --port 5555 --hostname 0.0.0.0
+
+networks:
+  mementia-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local

@@ -1,0 +1,224 @@
+// Mementia Discord Bot - Database Schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// 使用者相關
+// ============================================
+
+/// 使用者資料表
+model User {
+  id            String         @id @default(uuid())
+  discordId     String         @unique @map("discord_id")
+  username      String
+  timezone      String         @default("Asia/Taipei")
+  reminderTime  String?        @map("reminder_time") // 每日提醒時間 (HH:mm)
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  // 關聯
+  emotions      Emotion[]
+  futureLetters FutureLetter[]
+  reviews       Review[]
+  challenges    UserChallenge[]
+  settings      UserSettings?
+
+  @@map("users")
+}
+
+/// 使用者設定
+model UserSettings {
+  id                String   @id @default(uuid())
+  userId            String   @unique @map("user_id")
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  dailyReminder     Boolean  @default(true) @map("daily_reminder")
+  weeklyReview      Boolean  @default(true) @map("weekly_review")
+  monthlyReview     Boolean  @default(true) @map("monthly_review")
+  challengeEnabled  Boolean  @default(true) @map("challenge_enabled")
+
+  language          String   @default("zh-TW")
+
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  @@map("user_settings")
+}
+
+// ============================================
+// 情緒日記 (星球彩繪)
+// ============================================
+
+/// 情緒日記
+model Emotion {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date        DateTime @default(now())
+  mood        Int      // 1-10 情緒分數
+  moodLabel   String   @map("mood_label") // 情緒標籤 (開心、平靜、焦慮等)
+  content     String   @db.Text // 日記內容
+
+  // AI 生成內容
+  songUrl     String?  @map("song_url")
+  songName    String?  @map("song_name")
+  color       String?  // 星球顏色 (hex code)
+  planetId    String?  @map("planet_id") // 星球編號
+  aiInsight   String?  @db.Text @map("ai_insight") // AI 洞察
+
+  // 元數據
+  wordCount   Int      @default(0) @map("word_count")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // 關聯
+  tags        EmotionTag[]
+
+  @@index([userId, date])
+  @@map("emotions")
+}
+
+/// 情緒標籤
+model EmotionTag {
+  id        String   @id @default(uuid())
+  emotionId String   @map("emotion_id")
+  emotion   Emotion  @relation(fields: [emotionId], references: [id], onDelete: Cascade)
+
+  name      String   // 標籤名稱
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([emotionId])
+  @@map("emotion_tags")
+}
+
+// ============================================
+// 給未來的信 (光年之外)
+// ============================================
+
+/// 給未來的信
+model FutureLetter {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  content      String   @db.Text
+  sendDate     DateTime @map("send_date") // 寫信日期
+  deliverDate  DateTime @map("deliver_date") // 預計送達日期
+
+  opened       Boolean  @default(false)
+  openedAt     DateTime? @map("opened_at")
+
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@index([userId, deliverDate])
+  @@map("future_letters")
+}
+
+// ============================================
+// 回顧報告 (星系團聚集)
+// ============================================
+
+/// 回顧報告
+model Review {
+  id          String     @id @default(uuid())
+  userId      String     @map("user_id")
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type        ReviewType // WEEKLY, MONTHLY, QUARTERLY, YEARLY
+  period      String     // 期間標識 (e.g., "2024-W12", "2024-06")
+  startDate   DateTime   @map("start_date")
+  endDate     DateTime   @map("end_date")
+
+  // AI 生成的回顧內容
+  summary     String     @db.Text
+  highlights  Json       // 重點時刻 []
+  insights    String     @db.Text // 深度洞察
+  moodTrend   Json       @map("mood_trend") // 情緒趨勢數據
+  wordCloud   Json?      @map("word_cloud") // 詞雲數據
+
+  createdAt   DateTime   @default(now()) @map("created_at")
+
+  @@index([userId, type, period])
+  @@unique([userId, type, period])
+  @@map("reviews")
+}
+
+/// 回顧類型
+enum ReviewType {
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+// ============================================
+// 幸福挑戰 (外星生命入侵)
+// ============================================
+
+/// 挑戰題庫
+model Challenge {
+  id          String   @id @default(uuid())
+
+  title       String
+  description String   @db.Text
+  category    String   // 分類 (social, self-care, creativity, etc.)
+  difficulty  Int      @default(1) // 1-3
+  reward      Json     // 獎勵內容 {type, value}
+
+  isActive    Boolean  @default(true) @map("is_active")
+
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // 關聯
+  userChallenges UserChallenge[]
+
+  @@map("challenges")
+}
+
+/// 使用者挑戰記錄
+model UserChallenge {
+  id          String    @id @default(uuid())
+  userId      String    @map("user_id")
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  challengeId String    @map("challenge_id")
+  challenge   Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+
+  assignedAt  DateTime  @default(now()) @map("assigned_at")
+  dueDate     DateTime  @map("due_date")
+
+  completed   Boolean   @default(false)
+  completedAt DateTime? @map("completed_at")
+  proof       String?   @db.Text // 完成證明 (文字描述)
+
+  rewardClaimed Boolean @default(false) @map("reward_claimed")
+
+  @@index([userId, completed])
+  @@map("user_challenges")
+}
+
+// ============================================
+// 系統日誌 (可選)
+// ============================================
+
+/// 活動日誌
+model ActivityLog {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  action    String   // 動作類型
+  details   Json?    // 詳細資料
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@map("activity_logs")
+}
