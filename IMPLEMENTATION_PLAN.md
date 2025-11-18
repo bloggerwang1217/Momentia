@@ -45,33 +45,54 @@
 
 ### AI 模型策略
 
-**雙模型混合使用**，針對不同場景選擇最適合的模型：
+**多模型混合使用**，針對不同場景選擇最適合的模型：
 
 | 場景 | 推薦模型 | 理由 |
 |------|---------|------|
-| 日常情緒記錄分析 | Claude Haiku 4.5 | 聰明、真誠、性價比高 |
+| 日常情緒記錄分析 | GPT-5.1 Mini | 同理心高、超便宜、遵守指令 |
 | 聊天記錄分析 | Claude Haiku 4.5 | 處理長文本能力強 |
-| 歌曲推薦 | Claude Haiku 4.5 | 快速且精準 |
-| 挑戰建議 | Claude Haiku 4.5 | 創意與實用兼具 |
-| 週期回顧報告 | GPT-4o | 情緒價值高、深度洞察強 |
-| 年度總結 | GPT-4o | 最高品質的敘事能力 |
+| 歌曲推薦 | GPT-5.1 Mini | 快速且精準、成本最低 |
+| 挑戰建議 | GPT-5.1 Mini | 創意與實用兼具 |
+| 週期回顧報告 | GPT-5.1 | 同理心高、情緒價值好、遵守指令 |
+| 年度總結 | Claude Sonnet 4.5 或 GPT-5.1 | Sonnet：真誠直接；GPT-5.1：同理心高 |
 
-#### 價格比較（2024年12月）
+#### 價格比較（2024年12月最新）
 
-| 模型 | Input | Output | 典型對話成本* | 適用場景 |
-|------|-------|--------|--------------|---------|
-| **GPT-4o-mini** | $0.15/M | $0.60/M | $0.00045 | 💰 最便宜（測試用） |
-| **Claude Haiku 4.5** ⭐ | $1.00/M | $5.00/M | **$0.0035** | ✨ 聰明真誠（推薦） |
-| **GPT-4o** | $2.50/M | $10.00/M | $0.0075 | 💎 情緒價值高 |
-| Claude 3.5 Sonnet | $3.00/M | $15.00/M | $0.0105 | 🧠 最高品質（備用） |
+| 模型 | Input | Output | Cached Input | 典型成本* | 特色 |
+|------|-------|--------|--------------|----------|------|
+| **GPT-5.1 Mini** ⭐ | $0.25/M | $2.00/M | $0.025/M | **$0.00125** | 💰 超值首選 |
+| **GPT-4o-mini** | $0.15/M | $0.60/M | - | $0.00045 | 💸 最便宜 |
+| **GPT-5.1** 🔥 | $1.25/M | $10.00/M | $0.125/M | **$0.00625** | ❤️ 同理心高、新 |
+| **Claude Haiku 4.5** | $1.00/M | $5.00/M | - | $0.0035 | ✨ 聰明真誠 |
+| GPT-4o | $2.50/M | $10.00/M | - | $0.0075 | 💎 前代旗艦 |
+| **Claude Sonnet 4.5** | $3.00/M | $15.00/M | - | **$0.0105** | 🧠 真誠直接 |
 
-*典型對話：1000 input tokens + 500 output tokens
+*典型對話成本：1000 input + 500 output tokens（不含 cache）
 
-**價格優勢**：Claude Haiku 4.5 比 GPT-4o 便宜 **53%**，同時保持高品質輸出
+#### 💡 Cached Input 優勢（GPT-5.1 系列獨有）
+
+GPT-5.1 系列支援 **Cached Input**，對於系統 prompt 和重複內容可省 **90% 成本**！
+
+**範例**：如果系統 prompt 有 2000 tokens，每次對話重複使用：
+```
+傳統模型：每次都要付 2000 tokens input 費用
+GPT-5.1：第一次 $1.25/M，之後 $0.125/M（省 90%）
+GPT-5.1 Mini：第一次 $0.25/M，之後 $0.025/M（省 90%）
+```
+
+**實際成本**（含 2000 tokens cached system prompt）：
+- GPT-5.1 Mini: $0.00005 + $0.00025 + $0.001 = **$0.0013** ✨
+- GPT-5.1: $0.00025 + $0.00125 + $0.005 = **$0.00650** 🔥
+
+#### 🎯 推薦策略
 
 **成本估算**：每位使用者每月約 100 次互動，平均成本：
-- 純 Claude Haiku 4.5：約 **$0.35/月**
-- 混合使用（Haiku + GPT-4o）：約 **$0.45/月**
+- **推薦方案**（GPT-5.1 Mini + GPT-5.1 混合）：約 **$0.15/月** ⭐
+- 純 GPT-5.1 Mini：約 **$0.13/月**
+- Claude Haiku 4.5 為主：約 **$0.35/月**
+- 全用 Claude Sonnet 4.5：約 **$1.05/月**
+
+**結論**：GPT-5.1 系列性價比最高，同理心強且遵守指令，是情緒陪伴的最佳選擇！
 
 ---
 
@@ -1069,20 +1090,21 @@ DATABASE_URL="postgresql://user:password@localhost:5432/mementia?schema=public"
 
 # AI 配置 - OpenAI
 OPENAI_API_KEY=your_openai_api_key
-OPENAI_MODEL=gpt-4o
-# 可選模型: gpt-4o, gpt-4o-mini
+OPENAI_MODEL=gpt-5.1-mini
+# 可選模型: gpt-5.1-mini, gpt-5.1, gpt-4o
 
 # AI 配置 - Anthropic
 ANTHROPIC_API_KEY=your_anthropic_api_key
 ANTHROPIC_MODEL=claude-3-5-haiku-20241022
-# 可選模型: claude-3-5-haiku-20241022, claude-3-5-sonnet-20241022
+# 可選模型: claude-3-5-haiku-20241022, claude-sonnet-4.5
 
-# AI 模型分配策略
-AI_MODEL_DAILY=claude-3-5-haiku-20241022  # 日常情緒記錄
-AI_MODEL_REVIEW=gpt-4o                     # 週期回顧報告
-AI_MODEL_CHAT_ANALYSIS=claude-3-5-haiku-20241022  # 聊天記錄分析
-AI_MODEL_SONG=claude-3-5-haiku-20241022    # 歌曲推薦
-AI_MODEL_CHALLENGE=claude-3-5-haiku-20241022  # 挑戰建議
+# AI 模型分配策略（針對不同場景使用最適合的模型）
+AI_MODEL_DAILY=gpt-5.1-mini              # 日常情緒記錄（同理心高、超便宜）
+AI_MODEL_REVIEW=gpt-5.1                   # 週期回顧報告（同理心高、遵守指令）
+AI_MODEL_CHAT_ANALYSIS=claude-3-5-haiku-20241022  # 聊天記錄分析（長文本處理強）
+AI_MODEL_SONG=gpt-5.1-mini                # 歌曲推薦（快速精準）
+AI_MODEL_CHALLENGE=gpt-5.1-mini           # 挑戰建議（創意實用）
+AI_MODEL_ANNUAL_REVIEW=claude-sonnet-4.5  # 年度總結（真誠直接，可選）
 
 # Email 服務 - Resend
 RESEND_API_KEY=your_resend_api_key
