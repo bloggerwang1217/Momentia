@@ -18,17 +18,26 @@ model User {
   id            String         @id @default(uuid())
   discordId     String         @unique @map("discord_id")
   username      String
+  email         String?        // Email 地址（用於未來信件通知，可選）
   timezone      String         @default("Asia/Taipei")
   reminderTime  String?        @map("reminder_time") // 每日提醒時間 (HH:mm)
+
+  // 獎勵系統
+  stardust      Int            @default(0) // 星塵餘額
+  level         Int            @default(1) // 當前等級
+  totalRecords  Int            @default(0) @map("total_records") // 總記錄天數
+
   createdAt     DateTime       @default(now()) @map("created_at")
   updatedAt     DateTime       @updatedAt @map("updated_at")
 
   // 關聯
-  emotions      Emotion[]
-  futureLetters FutureLetter[]
-  reviews       Review[]
-  challenges    UserChallenge[]
-  settings      UserSettings?
+  emotions           Emotion[]
+  futureLetters      FutureLetter[]
+  reviews            Review[]
+  challenges         UserChallenge[]
+  settings           UserSettings?
+  stardustTransactions StardustTransaction[]
+  userBadges         UserBadge[]
 
   @@map("users")
 }
@@ -221,4 +230,55 @@ model ActivityLog {
 
   @@index([userId, createdAt])
   @@map("activity_logs")
+}
+
+// ============================================
+// 獎勵系統
+// ============================================
+
+/// 星塵交易記錄
+model StardustTransaction {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  amount    Int      // 正數為獲得，負數為花費
+  reason    String   // 原因
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@map("stardust_transactions")
+}
+
+/// 徽章定義
+model Badge {
+  id          String   @id @default(uuid())
+  code        String   @unique // 徽章代碼（FIRST_RECORD, WEEK_STREAK 等）
+  name        String   // 徽章名稱
+  description String   // 徽章描述
+  icon        String   // Emoji 圖示
+  category    String   // 類別（record, challenge, explore, special）
+
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // 關聯
+  userBadges  UserBadge[]
+
+  @@map("badges")
+}
+
+/// 使用者徽章
+model UserBadge {
+  id       String   @id @default(uuid())
+  userId   String   @map("user_id")
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  badgeId  String   @map("badge_id")
+  badge    Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  earnedAt DateTime @default(now()) @map("earned_at")
+
+  @@unique([userId, badgeId])
+  @@index([userId])
+  @@map("user_badges")
 }
