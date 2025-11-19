@@ -15,6 +15,7 @@ import {
 import { getOrCreateUser, updateUserEmail, earnBadge } from '../services/user.service';
 import { createEmotionRecord, createEmotionFromChat } from '../services/emotion.service';
 import { createLetter } from '../services/letter.service';
+import { assignRandomChallenge, completeChallenge } from '../services/challenge.service';
 import { createPlanetEmbed, createSuccessEmbed, createErrorEmbed } from '../utils/embed-builder';
 import { log } from '../utils/logger';
 import { validateMood } from '../utils/validation';
@@ -32,6 +33,10 @@ export async function handleButtonInteraction(interaction: ButtonInteraction): P
       await handlePaintManual(interaction);
     } else if (customId === 'paint_chat') {
       await handlePaintChat(interaction);
+    }
+    // Challenge 指令相關按鈕
+    else if (customId === 'accept_challenge') {
+      await handleAcceptChallenge(interaction);
     }
   } catch (error) {
     log.error('Error handling button interaction:', error);
@@ -55,6 +60,8 @@ export async function handleModalSubmit(interaction: ModalSubmitInteraction): Pr
       await handlePaintChatSubmit(interaction);
     } else if (customId === 'write_letter_modal') {
       await handleWriteLetterSubmit(interaction);
+    } else if (customId.startsWith('complete_challenge_')) {
+      await handleCompleteChallengeSubmit(interaction);
     }
   } catch (error) {
     log.error('Error handling modal submit:', error);
@@ -281,5 +288,86 @@ async function handleWriteLetterSubmit(interaction: ModalSubmitInteraction): Pro
   } catch (error) {
     log.error('Error creating letter:', error);
     await interaction.editReply({ content: '❌ 創建信件時發生錯誤' });
+  }
+}
+
+/**
+ * 處理接受挑戰按鈕
+ */
+async function handleAcceptChallenge(interaction: ButtonInteraction): Promise<void> {
+  await interaction.deferReply();
+
+  try {
+    const user = await getOrCreateUser(interaction.user.id, interaction.user.username);
+    const userChallenge = await assignRandomChallenge(user.id);
+
+    const challenge = userChallenge.challenge as any;
+    const difficultyStars = '⭐'.repeat(challenge.difficulty);
+    const reward = challenge.reward as { type: string; value: number | string };
+    const rewardText = reward.type === 'stardust'
+      ? `${reward.value} 星塵`
+      : `徽章：${reward.value}`;
+
+    const embed = createSuccessEmbed(
+      `🎯 新挑戰已接受！\n\n${difficultyStars} **${challenge.title}**\n\n📝 ${challenge.description}\n\n🏆 完成獎勵：${rewardText}\n⏰ 截止日期：${userChallenge.dueDate.toLocaleDateString('zh-TW')}\n🆔 挑戰 ID：${userChallenge.id.substring(0, 8)}\n\n使用 \`/complete-challenge ${userChallenge.id.substring(0, 8)}\` 提交完成證明！`
+    );
+
+    await interaction.editReply({ embeds: [embed] });
+    log.info(`User ${user.id} accepted challenge ${userChallenge.id}`);
+  } catch (error: any) {
+    if (error.message?.includes('already has 3 active challenges')) {
+      await interaction.editReply({
+        content: '❌ 你已經有 3 個活躍的挑戰了，請先完成一些再接受新的！',
+      });
+    } else if (error.message?.includes('No available challenges')) {
+      await interaction.editReply({
+        content: '❌ 目前沒有可用的挑戰，請稍後再試。',
+      });
+    } else {
+      log.error('Error accepting challenge:', error);
+      await interaction.editReply({
+        content: '❌ 接受挑戰時發生錯誤',
+      });
+    }
+  }
+}
+
+/**
+ * 處理完成挑戰 Modal 提交
+ */
+async function handleCompleteChallengeSubmit(interaction: ModalSubmitInteraction): Promise<void> {
+  await interaction.deferReply();
+
+  const userChallengeId = interaction.customId.replace('complete_challenge_', '');
+  const proof = interaction.fields.getTextInputValue('proof');
+
+  try {
+    const userChallenge = await completeChallenge(userChallengeId, proof);
+    const challenge = userChallenge.challenge as any;
+
+    const reward = challenge.reward as { type: string; value: number | string };
+    const rewardText = reward.type === 'stardust'
+      ? `${reward.value} 星塵`
+      : `徽章：${reward.value}`;
+
+    const isLate = new Date() > userChallenge.dueDate;
+
+    const embed = createSuccessEmbed(
+      `✅ 挑戰完成！\n\n**${challenge.title}**\n\n🎉 恭喜你完成了這個挑戰！${isLate ? '\n⚠️ 雖然逾期了，但你還是完成了！獎勵減半。' : ''}\n\n🏆 獲得獎勵：${rewardText}${isLate ? ' (減半)' : ''}\n\n📝 你的完成證明：\n${proof}\n\n繼續加油！💪`
+    );
+
+    await interaction.editReply({ embeds: [embed] });
+    log.info(`User challenge ${userChallengeId} completed`);
+  } catch (error: any) {
+    if (error.message?.includes('already completed')) {
+      await interaction.editReply({
+        content: '❌ 這個挑戰已經完成過了！',
+      });
+    } else {
+      log.error('Error completing challenge:', error);
+      await interaction.editReply({
+        content: '❌ 完成挑戰時發生錯誤',
+      });
+    }
   }
 }
