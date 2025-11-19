@@ -1,130 +1,230 @@
-# Mementia - Where memories live 🌟
+# 🌟 Mementia - Where Memories Live
 
 <div align="center">
 
-一個運用 AI 技術的 Discord 情緒陪伴機器人，讓你在繁忙生活中記錄幸福、回顧自己、獲得鼓勵。
+**A Discord bot that transforms your daily emotions into a personal universe of memories.**
 
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)](https://www.typescriptlang.org/)
-[![Discord.js](https://img.shields.io/badge/Discord.js-14.x-7289DA.svg)](https://discord.js.org/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16.x-336791.svg)](https://www.postgresql.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue)](https://www.typescriptlang.org/)
+[![Discord.js](https://img.shields.io/badge/Discord.js-14.x-7289DA)](https://discord.js.org/)
+[![Prisma](https://img.shields.io/badge/Prisma-5.x-2D3748)](https://www.prisma.io/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+[Features](#-features) • [Getting Started](#-getting-started) • [Commands](#-commands) • [Tech Stack](#-tech-stack)
 
 </div>
 
-## ✨ 核心功能
+---
 
-### 🎨 星球彩繪 (Daily Emotion Log)
-視覺化情緒日記，每天記錄心情，AI 自動分析並推薦歌曲。將每一天轉化為獨特的星球，累積你的情緒宇宙。
+## 📖 About
 
-### 💌 來自光年之外 (Future Letter)
-寫信給未來的自己，跨越時空的自我對話。讓過去的感動成為前行的力量。
+Mementia is an interactive Discord bot that helps you track, visualize, and reflect on your emotional journey. Every day becomes a unique planet in your personal galaxy, with AI-powered insights, music recommendations, and thoughtful challenges to enhance your well-being.
 
-### 📊 本星系團聚集 (Periodic Review)
-AI 自動整理你的情緒記錄，生成週報、月報、年度回顧。用數據和洞察看見自己的成長軌跡。
+### ✨ Core Features
 
-### 🛸 外星生命入侵 (Happiness Challenge)
-定期推送幸福挑戰任務，完成後獲得虛擬獎勵。讓累積幸福成為一場充滿驚喜的冒險！
+- **🎨 Planet Painting (星球彩繪)** - Daily emotion logging with AI-generated planets
+- **✉️ Time Capsule Letters (光年之外)** - Write letters to your future self
+- **📊 Periodic Reviews (星系團聚集)** - AI-generated weekly/monthly/quarterly/yearly insights
+- **👾 Happiness Challenges (外星生命入侵)** - Gamified well-being activities
+- **⭐ Reward System** - Earn stardust, level up, and collect badges
+- **🤖 AI Integration** - GPT-5.1 and Claude for sentiment analysis and insights
 
-## 🚀 快速開始
+---
 
-### 前置需求
+## 🚀 Features
 
-- Node.js >= 20.x
-- PostgreSQL >= 14.x
-- Discord Bot Token ([如何創建](https://discord.com/developers/applications))
-- OpenAI API Key ([獲取方式](https://platform.openai.com/api-keys))
+### 1. 🎨 Daily Emotion Logging
 
-### 安裝步驟
+Transform your mood into beautiful planets:
 
-```bash
-# 1. Clone 專案
-git clone https://github.com/your-username/momentia.git
-cd momentia
+- **Manual Input**: Rate your mood 1-10 and write about your day
+- **Chat Analysis**: Paste conversation logs and let AI analyze your emotions
+- **AI Insights**: Get personalized music recommendations and emotional insights
+- **Unique Planets**: Each day generates a unique planet with color and ID
 
-# 2. 安裝依賴
-npm install
+**Commands**: `/paint`, `/view-planet`, `/my-galaxy`
 
-# 3. 設定環境變數
-cp .env.example .env
-# 編輯 .env 填入你的配置
+### 2. ✉️ Future Letters
 
-# 4. 啟動資料庫（使用 Docker）
-docker-compose up -d postgres
+Create time capsules for your future self:
 
-# 5. 執行資料庫遷移
-npm run db:migrate
+- Write letters that deliver in 1-12 months
+- Receive notifications via Discord and Email
+- Reflect on your past thoughts and growth
+- Earn rewards for sending and opening letters
 
-# 6. 註冊 Discord 斜線指令
-npm run deploy-commands
+**Commands**: `/write-letter`, `/my-letters`, `/open-letter`
 
-# 7. 啟動 Bot
-npm run dev
+### 3. 📊 AI-Powered Reviews
+
+Get comprehensive emotional insights with mood trends, highlights, and AI-generated recommendations.
+
+**Commands**: `/review`
+
+### 4. 👾 Happiness Challenges
+
+Gamify your well-being journey with weekly challenges, difficulty levels, and badge rewards.
+
+**Commands**: `/challenges`, `/complete-challenge`, `/challenge-history`
+
+### 5. ⭐ Progression System
+
+**Stardust** - Earn through daily activities (10-500 ✨)
+**Levels** - Progress as you engage
+**Badges** - Unlock achievements
+
+### 6. ⚙️ Customization
+
+Manage settings for email, timezone, reminders, and preferences.
+
+**Commands**: `/settings`, `/stats`, `/help`
+
+---
+
+## 🛠️ Tech Stack
+
+- **Runtime**: Node.js 18+ with TypeScript 5.3
+- **Framework**: Discord.js 14.x
+- **Database**: PostgreSQL + Prisma ORM
+- **AI**: OpenAI GPT-5.1, Anthropic Claude Haiku 4.5
+- **Services**: Resend (Email), Winston (Logging)
+- **Scheduling**: node-cron
+
+---
+
+## 📦 Getting Started
+
+### Prerequisites
+
+- Node.js 18+ and npm
+- PostgreSQL database
+- Discord Bot Token
+- OpenAI API Key
+- Anthropic API Key (optional)
+- Resend API Key (optional)
+
+### Installation
+
+1. **Clone and install**
+   ```bash
+   git clone https://github.com/yourusername/Momentia.git
+   cd Momentia
+   npm install
+   ```
+
+2. **Configure environment**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your credentials
+   ```
+
+3. **Setup database**
+   ```bash
+   npx prisma generate
+   npx prisma migrate dev
+   npx prisma db seed
+   ```
+
+4. **Run**
+   ```bash
+   npm run build
+   npm start
+   # Or for development:
+   npm run dev
+   ```
+
+### Discord Bot Setup
+
+1. Create bot at [Discord Developer Portal](https://discord.com/developers/applications)
+2. Enable intents: Server Members, Message Content
+3. Invite with permissions: Send Messages, Embed Links, Use Slash Commands
+
+---
+
+## 📚 Commands
+
+### Emotion Tracking
+- `/paint` - Start planet painting
+- `/view-planet [date]` - View specific planet
+- `/my-galaxy [year] [month]` - Monthly calendar
+
+### Future Letters
+- `/write-letter` - Write to future self
+- `/my-letters` - View all letters
+- `/open-letter <id>` - Open delivered letter
+
+### Reviews
+- `/review <type>` - Generate/view reviews
+
+### Challenges
+- `/challenges` - View active challenges
+- `/complete-challenge <id>` - Complete challenge
+- `/challenge-history` - View history
+
+### Settings
+- `/settings` - Manage preferences
+- `/stats` - View statistics
+- `/help` - Get help
+
+---
+
+## 🗂️ Project Structure
+
+```
+Momentia/
+├── prisma/           # Database schema & seeds
+├── src/
+│   ├── ai/          # AI services
+│   ├── commands/    # Slash commands
+│   ├── config/      # Configuration
+│   ├── jobs/        # Cron jobs
+│   ├── services/    # Business logic
+│   ├── utils/       # Utilities
+│   └── index.ts     # Entry point
+└── ...
 ```
 
-### 使用 Docker（推薦）
+---
 
-```bash
-# 啟動所有服務（PostgreSQL + Bot + Prisma Studio）
-docker-compose up -d
+## 📊 Scheduled Tasks
 
-# 查看日誌
-docker-compose logs -f bot
+- **Hourly**: Letter delivery, Daily reminders
+- **Daily 2 AM**: Review generation
+- **Monday 9 AM**: Challenge assignment
 
-# 停止服務
-docker-compose down
-```
+---
 
-## 📖 文檔
+## 🐛 Troubleshooting
 
-- [完整實作計畫](IMPLEMENTATION_PLAN.md) - 詳細的技術架構和開發路線圖
-- [快速開始指南](QUICK_START.md) - 手把手教學
-- [API 文檔](docs/API.md) - Discord 指令和功能說明（即將推出）
+**Bot doesn't respond**
+- Verify bot permissions and token
+- Register commands: `npm run deploy-commands`
 
-## 🏗️ 技術架構
+**Database errors**
+- Check `DATABASE_URL`
+- Run `npx prisma generate`
 
-```
-TypeScript + Discord.js + PostgreSQL + Prisma + OpenAI
-```
+**AI errors**
+- Verify API keys
+- Check rate limits
 
-- **前端界面**: Discord (斜線指令 + 互動式按鈕/選單)
-- **後端邏輯**: Node.js + TypeScript
-- **資料庫**: PostgreSQL + Prisma ORM
-- **AI 引擎**: OpenAI GPT-4
-- **任務排程**: node-cron
+---
 
-詳細架構請參考 [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md)
+## 🤝 Contributing
 
-## 🎯 開發路線圖
+Contributions welcome! Fork, create feature branch, commit, push, and open PR.
 
-- [x] Phase 1: 基礎設施建設
-- [ ] Phase 2: 星球彩繪功能
-- [ ] Phase 3: 未來信件功能
-- [ ] Phase 4: 回顧系統
-- [ ] Phase 5: 幸福挑戰
-- [ ] Phase 6: 優化和擴展
-- [ ] Phase 7: 生產部署
+---
 
-查看完整路線圖：[開發路線圖](IMPLEMENTATION_PLAN.md#開發路線圖)
+## 📄 License
 
-## 🤝 貢獻
-
-歡迎貢獻！請查看 [貢獻指南](CONTRIBUTING.md) 了解詳情。
-
-## 📄 授權
-
-本專案採用 [MIT 授權](LICENSE)
-
-## 🙏 致謝
-
-- 基於正向心理學和懷舊研究的科學基礎
-- 感謝所有開源社群的貢獻者
+MIT License - see [LICENSE](LICENSE)
 
 ---
 
 <div align="center">
 
-**Mementia** - 讓每一段時光都值得珍藏 ✨
+Made with ❤️ by the Mementia Team
 
-Made with ❤️ for mental wellbeing
+**[⬆ Back to Top](#-mementia---where-memories-live)**
 
 </div>
