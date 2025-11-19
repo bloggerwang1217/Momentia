@@ -4,138 +4,194 @@
  * "Where memories live." - 在 Discord 上打造你的情緒宇宙
  */
 
-import { Client, GatewayIntentBits, Collection, Events } from 'discord.js';
+import { Client, GatewayIntentBits, Events } from 'discord.js';
 import dotenv from 'dotenv';
-import path from 'path';
+import { ExtendedClient } from './types';
+import { log, logCommand } from './utils/logger';
+import { validateAllConfigs, discordConfig } from './config';
+import { connectDatabase, disconnectDatabase } from './config/prisma';
+import { loadCommands, handleCommandInteraction } from './commands';
+import {
+  handleUnhandledRejection,
+  handleUncaughtException,
+  handleInteractionError,
+} from './middlewares/error-handler';
+import {
+  handleButtonInteraction,
+  handleModalSubmit,
+} from './middlewares/interaction-handler';
+import { startAllJobs } from './jobs';
 
 // 載入環境變數
 dotenv.config();
 
-// 驗證必要的環境變數
-const requiredEnvVars = ['DISCORD_TOKEN', 'DATABASE_URL', 'OPENAI_API_KEY'];
-for (const envVar of requiredEnvVars) {
-  if (!process.env[envVar]) {
-    console.error(`❌ 錯誤: 缺少必要的環境變數 ${envVar}`);
-    console.error('請檢查你的 .env 檔案');
+/**
+ * 初始化應用程式
+ */
+async function initialize(): Promise<void> {
+  try {
+    // 驗證環境配置
+    log.info('Validating configuration...');
+    validateAllConfigs();
+    log.info('✅ Configuration validated');
+
+    // 連接資料庫
+    log.info('Connecting to database...');
+    await connectDatabase();
+    log.info('✅ Database connected');
+
+    log.info('✅ Initialization complete');
+  } catch (error) {
+    log.error('❌ Initialization failed:', error);
     process.exit(1);
   }
 }
 
-// 創建 Discord Client
-const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMembers,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
-    GatewayIntentBits.DirectMessages,
-  ],
-});
+/**
+ * 創建並設定 Discord Client
+ */
+function createClient(): ExtendedClient {
+  const client = new Client({
+    intents: [
+      GatewayIntentBits.Guilds,
+      GatewayIntentBits.GuildMembers,
+      GatewayIntentBits.GuildMessages,
+      GatewayIntentBits.MessageContent,
+      GatewayIntentBits.DirectMessages,
+    ],
+  }) as ExtendedClient;
 
-// TODO: 載入指令處理器
-// client.commands = new Collection();
-// const commandsPath = path.join(__dirname, 'commands');
-// ... (指令載入邏輯)
+  return client;
+}
 
 /**
- * Bot 就緒事件
+ * 設定事件監聽器
  */
-client.once(Events.ClientReady, (c) => {
-  console.log('🌟 ================================');
-  console.log('✨ Mementia Bot is online!');
-  console.log(`🤖 Logged in as: ${c.user.tag}`);
-  console.log(`🏰 Serving ${c.guilds.cache.size} guilds`);
-  console.log('🌟 ================================');
+function setupEventListeners(client: ExtendedClient): void {
+  /**
+   * Bot 就緒事件
+   */
+  client.once(Events.ClientReady, async (c) => {
+    log.info('🌟 ================================');
+    log.info('✨ Mementia Bot is online!');
+    log.info(`🤖 Logged in as: ${c.user.tag}`);
+    log.info(`🏰 Serving ${c.guilds.cache.size} guilds`);
+    log.info('🌟 ================================');
 
-  // 設定 Bot 狀態
-  c.user.setPresence({
-    activities: [{ name: '記錄你的星球 🌍 | /paint' }],
-    status: 'online',
+    // 載入指令
+    await loadCommands(client);
+
+    // 啟動定時任務
+    startAllJobs(client);
+
+    // 設定 Bot 狀態
+    c.user.setPresence(discordConfig.presence);
+
+    log.info('✅ Bot is ready to serve!');
   });
-});
+
+  /**
+   * 互動事件處理
+   */
+  client.on(Events.InteractionCreate, async (interaction) => {
+    try {
+      // 處理斜線指令
+      if (interaction.isChatInputCommand()) {
+        logCommand(interaction.user.id, interaction.user.tag, interaction.commandName);
+        await handleCommandInteraction(client, interaction);
+      }
+
+      // 處理按鈕互動
+      if (interaction.isButton()) {
+        log.debug(`Button clicked: ${interaction.customId} by ${interaction.user.tag}`);
+        await handleButtonInteraction(interaction);
+      }
+
+      // TODO: 處理選單互動
+      if (interaction.isStringSelectMenu()) {
+        log.debug(`Select menu: ${interaction.customId} by ${interaction.user.tag}`);
+      }
+
+      // 處理 Modal 提交
+      if (interaction.isModalSubmit()) {
+        log.debug(`Modal submitted: ${interaction.customId} by ${interaction.user.tag}`);
+        await handleModalSubmit(interaction);
+      }
+    } catch (error) {
+      if (interaction.isChatInputCommand()) {
+        await handleInteractionError(error, interaction);
+      } else {
+        log.error('Error handling interaction:', error);
+      }
+    }
+  });
+
+  /**
+   * Discord Client 錯誤處理
+   */
+  client.on(Events.Error, (error) => {
+    log.error('Discord Client Error:', error);
+  });
+
+  client.on(Events.Warn, (warning) => {
+    log.warn('Discord Client Warning:', warning);
+  });
+
+  /**
+   * 全域錯誤處理
+   */
+  process.on('unhandledRejection', handleUnhandledRejection);
+  process.on('uncaughtException', handleUncaughtException);
+
+  /**
+   * 優雅關閉
+   */
+  const shutdown = async (signal: string) => {
+    log.info(`\n🛑 Received ${signal}, shutting down gracefully...`);
+
+    try {
+      // 關閉 Discord 連線
+      client.destroy();
+      log.info('✅ Discord client destroyed');
+
+      // 關閉資料庫連線
+      await disconnectDatabase();
+
+      log.info('✅ Graceful shutdown complete');
+      process.exit(0);
+    } catch (error) {
+      log.error('❌ Error during shutdown:', error);
+      process.exit(1);
+    }
+  };
+
+  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+}
 
 /**
- * 互動事件處理（斜線指令）
+ * 啟動 Bot
  */
-client.on(Events.InteractionCreate, async (interaction) => {
-  // 處理斜線指令
-  if (interaction.isChatInputCommand()) {
-    console.log(`📝 [Command] ${interaction.user.tag} used /${interaction.commandName}`);
+async function start(): Promise<void> {
+  try {
+    // 初始化
+    await initialize();
 
-    // TODO: 執行對應的指令處理器
-    // const command = client.commands.get(interaction.commandName);
-    // if (!command) return;
-    // await command.execute(interaction);
+    // 創建 Client
+    const client = createClient();
 
-    // 臨時回應（開發階段）
-    await interaction.reply({
-      content: '🚧 這個功能還在開發中！請稍候...',
-      ephemeral: true,
-    });
-  }
+    // 設定事件監聽器
+    setupEventListeners(client);
 
-  // 處理按鈕互動
-  if (interaction.isButton()) {
-    console.log(`🔘 [Button] ${interaction.user.tag} clicked ${interaction.customId}`);
-    // TODO: 處理按鈕邏輯
-  }
-
-  // 處理選單互動
-  if (interaction.isStringSelectMenu()) {
-    console.log(`📋 [Select Menu] ${interaction.user.tag} selected from ${interaction.customId}`);
-    // TODO: 處理選單邏輯
-  }
-
-  // 處理 Modal 提交
-  if (interaction.isModalSubmit()) {
-    console.log(`📝 [Modal] ${interaction.user.tag} submitted ${interaction.customId}`);
-    // TODO: 處理 Modal 邏輯
-  }
-});
-
-/**
- * 錯誤處理
- */
-client.on(Events.Error, (error) => {
-  console.error('❌ Discord Client Error:', error);
-});
-
-process.on('unhandledRejection', (error) => {
-  console.error('❌ Unhandled Promise Rejection:', error);
-});
-
-process.on('uncaughtException', (error) => {
-  console.error('❌ Uncaught Exception:', error);
-  process.exit(1);
-});
-
-/**
- * 優雅關閉
- */
-process.on('SIGINT', async () => {
-  console.log('\n🛑 Received SIGINT, shutting down gracefully...');
-  client.destroy();
-  // TODO: 關閉資料庫連線
-  // await prisma.$disconnect();
-  process.exit(0);
-});
-
-process.on('SIGTERM', async () => {
-  console.log('\n🛑 Received SIGTERM, shutting down gracefully...');
-  client.destroy();
-  // TODO: 關閉資料庫連線
-  // await prisma.$disconnect();
-  process.exit(0);
-});
-
-/**
- * 登入 Discord
- */
-client.login(process.env.DISCORD_TOKEN)
-  .catch((error) => {
-    console.error('❌ Failed to login to Discord:', error);
+    // 登入 Discord
+    log.info('Logging in to Discord...');
+    await client.login(discordConfig.token);
+  } catch (error) {
+    log.error('❌ Failed to start bot:', error);
     process.exit(1);
-  });
+  }
+}
 
-// 匯出 client（供其他模組使用）
-export default client;
+// 啟動應用程式
+start();
+
