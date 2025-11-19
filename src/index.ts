@@ -20,6 +20,7 @@ import {
   handleButtonInteraction,
   handleModalSubmit,
 } from './middlewares/interaction-handler';
+import { startAllJobs } from './jobs';
 
 // 載入環境變數
 dotenv.config();
@@ -79,6 +80,9 @@ function setupEventListeners(client: ExtendedClient): void {
 
     // 載入指令
     await loadCommands(client);
+
+    // 啟動定時任務
+    startAllJobs(client);
 
     // 設定 Bot 狀態
     c.user.setPresence(discordConfig.presence);

@@ -12,11 +12,13 @@ import {
   ActionRowBuilder,
   ModalSubmitInteraction,
 } from 'discord.js';
-import { getOrCreateUser } from '../services/user.service';
+import { getOrCreateUser, updateUserEmail, earnBadge } from '../services/user.service';
 import { createEmotionRecord, createEmotionFromChat } from '../services/emotion.service';
+import { createLetter } from '../services/letter.service';
 import { createPlanetEmbed, createSuccessEmbed, createErrorEmbed } from '../utils/embed-builder';
 import { log } from '../utils/logger';
 import { validateMood } from '../utils/validation';
+import { addMonthsToDate } from '../utils/date-utils';
 
 /**
  * 處理按鈕互動
@@ -51,6 +53,8 @@ export async function handleModalSubmit(interaction: ModalSubmitInteraction): Pr
       await handlePaintManualSubmit(interaction);
     } else if (customId === 'paint_chat_modal') {
       await handlePaintChatSubmit(interaction);
+    } else if (customId === 'write_letter_modal') {
+      await handleWriteLetterSubmit(interaction);
     }
   } catch (error) {
     log.error('Error handling modal submit:', error);
@@ -243,5 +247,39 @@ async function handlePaintChatSubmit(
     await interaction.editReply({
       content: '❌ 分析聊天記錄時發生錯誤，請稍後再試。',
     });
+  }
+}
+
+/**
+ * 處理寫信 Modal 提交
+ */
+async function handleWriteLetterSubmit(interaction: ModalSubmitInteraction): Promise<void> {
+  await interaction.deferReply();
+
+  const monthsStr = interaction.fields.getTextInputValue('deliver_months');
+  const content = interaction.fields.getTextInputValue('content');
+  const months = parseInt(monthsStr, 10);
+
+  if (isNaN(months) || months < 1 || months > 12) {
+    await interaction.editReply({ content: '❌ 月數必須是 1-12 之間的數字' });
+    return;
+  }
+
+  try {
+    const user = await getOrCreateUser(interaction.user.id, interaction.user.username);
+    const deliverDate = addMonthsToDate(new Date(), months);
+    const letter = await createLetter(user.id, content, deliverDate);
+
+    await earnBadge(user.id, 'TIME_TRAVELER');
+
+    const embed = createSuccessEmbed(
+      `✉️ 信件已封存！\n\n📅 送達日期: ${deliverDate.toLocaleDateString('zh-TW')}\n🔒 狀態: 已安全保存\n💫 獲得 30 星塵\n\n這封信將在 ${months} 個月後送達。${user.email ? `\n屆時會透過 Discord 和 Email (${user.email}) 提醒你。` : '\n\n💡 使用 /settings 設定 Email 以接收通知'}\n\n期待未來的重逢 🌠`
+    );
+
+    await interaction.editReply({ embeds: [embed] });
+    log.info(`User ${user.id} created letter ${letter.id}`);
+  } catch (error) {
+    log.error('Error creating letter:', error);
+    await interaction.editReply({ content: '❌ 創建信件時發生錯誤' });
   }
 }
