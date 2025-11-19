@@ -16,6 +16,10 @@ import {
   handleUncaughtException,
   handleInteractionError,
 } from './middlewares/error-handler';
+import {
+  handleButtonInteraction,
+  handleModalSubmit,
+} from './middlewares/interaction-handler';
 
 // 載入環境變數
 dotenv.config();
@@ -93,9 +97,10 @@ function setupEventListeners(client: ExtendedClient): void {
         await handleCommandInteraction(client, interaction);
       }
 
-      // TODO: 處理按鈕互動
+      // 處理按鈕互動
       if (interaction.isButton()) {
         log.debug(`Button clicked: ${interaction.customId} by ${interaction.user.tag}`);
+        await handleButtonInteraction(interaction);
       }
 
       // TODO: 處理選單互動
@@ -103,9 +108,10 @@ function setupEventListeners(client: ExtendedClient): void {
         log.debug(`Select menu: ${interaction.customId} by ${interaction.user.tag}`);
       }
 
-      // TODO: 處理 Modal 提交
+      // 處理 Modal 提交
       if (interaction.isModalSubmit()) {
         log.debug(`Modal submitted: ${interaction.customId} by ${interaction.user.tag}`);
+        await handleModalSubmit(interaction);
       }
     } catch (error) {
       if (interaction.isChatInputCommand()) {
